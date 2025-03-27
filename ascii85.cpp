@@ -53,23 +53,29 @@ std::vector<unsigned char> ASCII85::decode(const std::string& input) {
     std::string clean_input = cleanInput(input);
     std::vector<unsigned char> decoded_bytes;
 
+    size_t total_clean_size = clean_input.size();
     size_t pos = 0;
-    while (pos < clean_input.size()) {
+
+    while (pos < total_clean_size) {
         if (clean_input[pos] == 'z') {
             decoded_bytes.insert(decoded_bytes.end(), 4, 0x00);
             pos++;
             continue;
         }
 
-        size_t group_size = std::min<size_t>(5, clean_input.size() - pos);
-        if (group_size < 5) {
-            clean_input.append(5 - group_size, 'u');
-            group_size = 5;
+        size_t original_group_size = std::min<size_t>(5, total_clean_size - pos);
+        std::string group;
+
+        if (original_group_size < 5) {
+            group = clean_input.substr(pos, original_group_size);
+            group.append(5 - original_group_size, 'u');
+        } else {
+            group = clean_input.substr(pos, 5);
         }
 
         int N = 0;
         for (size_t i = 0; i < 5; ++i) {
-            char c = clean_input[pos + i];
+            char c = group[i];
             N = N * 85 + fromAscii85Char(c);
         }
 
@@ -78,7 +84,12 @@ std::vector<unsigned char> ASCII85::decode(const std::string& input) {
         decoded_bytes.push_back((N >> 8) & 0xFF);
         decoded_bytes.push_back(N & 0xFF);
 
-        pos += 5;
+        if (original_group_size < 5) {
+            size_t bytes_to_keep = original_group_size - 1;
+            decoded_bytes.resize(decoded_bytes.size() - (4 - bytes_to_keep));
+        }
+
+        pos += original_group_size;
     }
 
     return decoded_bytes;
